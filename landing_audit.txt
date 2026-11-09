@@ -1,0 +1,18 @@
+SCORE: 7/10
+
+TOP 3 FIXES:
+1. Split the 31-word H1 in `app/page.tsx`. It renders as four or more lines at 6xl and buries the promise under the proof. Keep the promise as the headline: "Know the hour the fixed kernel for your exact Ubuntu flavor lands in -proposed or -updates." Open the subhead with the differentiator: "Read straight from Launchpad and the apt archive, which had the CVE-2026-98432 fix ten days before the ubuntu.com CVE page and USN feed." Then keep the existing audience sentence.
+2. Fix the flavor legend in `components/SignupForm.tsx`. "Which kernel flavor does uname -r show?" is wrong for this reader: uname -r prints "6.8.0-52-generic" for both linux-generic and linux-generic-hwe, and the chips are metapackage names, not uname output. Change to "Which kernel metapackage is your fleet on?" An infra lead will spot the current version and discount the "archive ground truth" claim.
+3. Add one verbatim, linked quote from the Ask HN thread above the logo strip. Copy it exactly from the thread and attribute by handle (linsomniac's week-with-mitigations comment or BoppreH's "still personally affecting me" are the strongest candidates). The page currently has zero human voices, and the framework's testimonial slot is the only missing element that fits in five minutes. Do not paraphrase.
+
+GREEN FLAGS:
+- CTA is a benefit CTA that interpolates the chosen row: "Alert me when 22.04 / linux-aws flips to -updates." Nobody else can sign that button.
+- The promise is one promise, repeated in the same words in the headline, subhead, button, fine print, and confirmation state: alert on -proposed, alert on -updates with exact version string, then "remove your stopgap."
+- Falsifiable claim with a source. The ten-day lag is a number, tied to a named CVE, linked to the thread.
+- Audience is named to the person: "one-to-three-person ops team patching an Ubuntu LTS fleet without a Canonical contract." Anyone outside that group should feel the page is not for them, which is the point.
+- Objection handling in the fine print: "No agent, no root, nothing to install."
+- The logo strip inverts social proof into problem proof. Listing ubuntu.com/security, Launchpad, USN RSS, Tenable, Trivy, ma.ttias.be as "pages ops teams were refreshing by hand" is specific, visualizable, and differentiating.
+- Copy uses the customer's vocabulary throughout: -proposed, -updates, flavor, stopgap, reboot, uname, nftables in the meta description.
+- The demo disclaimer is honest. Keep it, but consider leading the caption with the ten-day fact and trailing the "illustrative" note.
+- Release and flavor chips mirror the product's unit of value, the row, so the form itself demonstrates the product.
+- The title and meta description in `app/layout.tsx` carry the full promise, so the HN and r/sysadmin link previews will do the pitch unassisted.

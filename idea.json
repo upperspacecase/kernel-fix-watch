@@ -1,0 +1,148 @@
+{
+  "status": "passed",
+  "killed_at_stage": null,
+  "kill_reason": null,
+  "stage_2": {
+    "customer": "The hands-on infra/security lead (1-3 person ops team) at a small or mid-size company running a fleet of Ubuntu LTS servers (tens to a few hundred hosts across generic, HWE, and cloud kernel flavors) with no Canonical support contract, who is personally on the hook for a patch SLA (SOC 2 policy, PCI DSS critical-within-one-month) and who this week hand-applied an nftables/iptables stopgap, then polled ubuntu.com/security, Launchpad -proposed, and apt daily to learn when they could reboot into a fixed kernel and remove the stopgap. Named instances in the threads: linsomniac (OP, mitigations in place a week), BoppreH (security engineer, 'still personally affecting me', leaving Ubuntu), dpkirchner and ranger_danger (tracking the CVE page by hand), guyisit/khoury (only learned the fix was in apt from an HN comment), stephenlf ('we're migrating too'), Brian Vitko at getrff (checked Ubuntu's archive at 19:43 UTC on Nov 4), Mattias Geniar (hand-built the ma.ttias.be vulnerable-kernels table with ~20 timestamped updates over 6 days).",
+    "where": "Hacker News (the two live threads: 50393105 and 50337608), r/sysadmin, r/linuxadmin, r/Ubuntu, r/selfhosted, Ubuntu Discourse (discourse.ubuntu.com security category), the oss-security list (openwall), ubuntu-security-announce list, Lobsters, Mattias Geniar's cron.weekly newsletter audience, Proxmox forums (Proxmox kernels derive from Ubuntu's).",
+    "pays_for": "Ubuntu Pro per-node subscriptions and Canonical Livepatch, TuxCare KernelCare live patching, vulnerability scanners (Tenable Nessus, Qualys, Rapid7, Wiz) and their OSS stand-ins (Trivy, Grype, Vuls), compliance automation (Vanta, Drata), uptime/alerting (Oh Dear, Better Stack, PagerDuty), cloud VM spend on AWS/EC2."
+  },
+  "stage_3": {
+    "real_posts": [
+      "https://news.ycombinator.com/item?id=50337608",
+      "https://ma.ttias.be/linux-cve-2026-98432-vulnerable-kernels/",
+      "https://getrff.com/blog/cve-2026-98432-linux-tcp-ip-options-block/",
+      "https://photostructure.com/coding/cve-2026-98432-ubuntu/",
+      "https://news.ycombinator.com/item?id=50388417",
+      "https://news.ycombinator.com/item?id=50405247"
+    ],
+    "urgent": "CVSS 9.8 kernel bug reachable by a SYN; per the getrff post, Marcus Hutchins reported MPTCP scanning on port 443 from residential proxies and Russian VPNs as of Nov 2, with ~2.1M servers answering MPTCP. Admins deployed stopgap firewall rules the same week (OP, photostructure, getrff, AlmaLinux's published nftables rule). Multiple commenters announced they were migrating off Ubuntu this week (BoppreH, stephenlf, esikich, leecommamichael). The Ask HN thread was still receiving comments 1 hour before this check. Fixed kernels for 20.04/18.04 and some HWE flavors were still not confirmed as of the Nov 4-7 updates on getrff and ma.ttias.be, so the exposure window is still open for part of the fleet.",
+    "valuable": "Fixed kernels sat in Ubuntu's -proposed pocket from Oct 26 (noble) and Oct 28 (resolute) but the CVE page still said 'work in progress' for ~10 days, so teams either ran blind stopgaps or kept exposed hosts; Debian LTS shipped the fix within ~2 days (layer8 comment), so Ubuntu users ate a roughly 3-week gap (Repairer page: 'Debian shipped a fixed kernel about three weeks before Ubuntu did'). Manual tracking cost is visible: one blogger made ~20 timestamped updates to a hand-maintained table in 6 days; getrff's author re-checked the archive on Oct 29, Nov 3 and Nov 4 at specific UTC times. The outsized cost is the response several teams chose: a distro migration, which is weeks of engineering time per fleet. No commenter stated a dollar figure; the dollar value is inferred from PCI/SOC 2 critical-patch SLAs and migration labor, not quoted."
+  },
+  "stage_4": {
+    "software": [
+      "Ubuntu CVE tracker page + USN RSS / ubuntu-security-announce (https://ubuntu.com/security/CVE-2026-98432, https://ubuntu.com/security/notices/rss.xml): the CVE page lagged the archive by ~10 days and still showed kernels as vulnerable after they shipped (dpkirchner, guyisit); the USN feed is a firehose with no per-kernel-flavor filter and never surfaces -proposed availability.",
+      "Vulnerability scanners: Tenable/Qualys/Rapid7 and OSS Trivy/Grype/Vuls: they consume the same Ubuntu OVAL/CVE feeds, so they reported 'vulnerable, no fix' for the same 10 days; they answer 'am I exposed' not 'when and in which pocket does my exact flavor get fixed, and when can I lift my stopgap'.",
+      "Live patching: TuxCare KernelCare and Canonical Livepatch (plus the new Show HN 'Repairer' at https://gno.security/repairer/, unshipped, 3 points): Livepatch rides the same Canonical pipeline that was slow here; KernelCare is paid per server and requires an agent; Repairer requires a root agent, hardware-wallet signatures and a gno.land swarm, and no servers run it yet."
+    ],
+    "workarounds": [
+      "Hand-apply an nftables/iptables rule dropping IP-options/MPTCP packets and remember to remove it later (OP, photostructure, getrff, AlmaLinux blog).",
+      "Manually poll Launchpad -proposed, run `apt policy linux-image-*`, or enable the -proposed pocket on prod (leecommamichael did this and tools broke).",
+      "Switch distro (Debian, Rocky, NixOS, Arch) or build a mainline kernel from kernel.org (icedchai moved a box to 7.3.1)."
+    ],
+    "graveyard": "GitHub searches run: 'ubuntu cve tracker notify', 'cve alert distro patch status archived:true', 'cve tracker notifier archived:true', 'usn ubuntu security notice notifier', 'ubuntu cve tracker in:name,description', 'security advisory tracker distro kernel archived:true'. Found: davbo/active-cve-check (27 stars, last push 2017), kartiksibal/Proposal-Prototype Ubuntu-CVE-tracker scraper (2017), several dead mirrors of Canonical's ubuntu-cve-tracker (2020-2022), and kamonabe1927/Mitori (archived Oct 2026). All were single-maintainer scripts that scraped the vendor tracker (the same lagging source) with no alerting and no incident-driven distribution; none watched the package archive itself. No archived commercial attempt found. The structural condition that is claimed to have changed is incident frequency: the post and multiple commenters argue AI-discovered kernel CVEs are now arriving faster than LTS backport pipelines can ship, which is exactly the claim the test below checks."
+  },
+  "stage_5": {
+    "chosen_approach": "Fix-landing tracker with alerts: a public per-CVE page that reads ground truth from the Launchpad publishing history and apt indexes (plus Debian/RHEL/SUSE trackers for comparison) and shows, per Ubuntu release and exact kernel flavor (generic, HWE, aws, azure, gcp, nvidia, lowlatency), whether a fixed kernel is in -proposed or -updates, with the exact version string, a one-line `uname -r` check, and an email/Slack alert when your flavor flips plus a 'you can lift your stopgap now' notice. This is the productized form of the hand-built ma.ttias.be table that both HN threads already linked as the reference. Customer lens: the page is the thing people were hunting for this week. Pragmatic lens: scrape Launchpad + static table + email signup ships in 1-2 days. Growth lens: every future critical kernel CVE thread links the tracker page. Money lens: team alerts for a fleet's flavor list via Slack is the card moment.",
+    "killed_approaches": [
+      "Stopgap-distribution agent (Repairer/getrff style) that auto-applies vetted nftables mitigations on hosts: requires a root agent and trust nobody will extend to a new vendor inside a week, so it cannot ship or be falsified in the window and competes head-on with TuxCare and Canonical Livepatch.",
+      "Per-host patch-state verifier (vulnerable? fix installed? rebooted into it?): a shell one-liner shared in the thread commoditizes it instantly and nobody pulls out a card for it."
+    ]
+  },
+  "stage_6": {
+    "hypothesis": "We believe hands-on infra leads running Ubuntu LTS fleets without a Canonical support contract will use a per-kernel-flavor CVE fix-landing tracker with alerts because it's the archive-ground-truth way to know the moment a fixed kernel for a critical CVE reaches -proposed or -updates for their exact flavor and when to lift their stopgap, better than the ubuntu.com/security CVE page, the USN RSS feed, and Tenable/Trivy feeds that all lagged the archive by ~10 days on CVE-2026-98432. We'll know we're right if 15 people submit an Ubuntu release + kernel flavor for alerts from one comment in the live Ask HN thread and one r/sysadmin post within 72 hours.",
+    "test_signal": "15 alert sign-ups that each specify an Ubuntu release and kernel flavor (not bare emails), sourced from one HN comment on item 50393105 and one r/sysadmin or r/linuxadmin post; fewer than 15 kills it.",
+    "test_deadline": "72 hours from posting, no later than 2026-11-13."
+  },
+  "app_name": "kernel_fix_watch",
+  "summary": "A public per-CVE tracker that reads Ubuntu's Launchpad/apt archive directly and shows, per release and exact kernel flavor, whether a fixed kernel is in -proposed or -updates, with email/Slack alerts when your flavor flips and a notice that you can remove your stopgap mitigation.",
+  "tech_stack": "Next.js + TypeScript + Tailwind CSS",
+  "id": "hn_50393105",
+  "title": "Ask HN: What in the world is taking Ubuntu so long?",
+  "url": "https://news.ycombinator.com/item?id=50393105",
+  "source": "hackernews",
+  "score": 217,
+  "num_comments": 139,
+  "original_body": "Ubuntu has CVE-2026-98432 marked as a 9.8, but yet it&#x27;s coming up on a week with no update to fix it.  It&#x27;s still marked as &quot;work in progress&quot; (though at least now they&#x27;ve listed a mitigation):<p>https:&#x2F;&#x2F;ubuntu.com&#x2F;security&#x2F;CVE-2026-98432<p>I&#x27;ve had mitigations in place for a week, but this response is really shaking my confidence in Ubuntu.  I&#x27;m just trying to understand what is going on with Ubuntu.  Do they have too many kernels (that pag",
+  "subreddit": "Ask HN",
+  "_kill_report": "KILLS -- 2026-11-09\n\nTotal candidates evaluated: 28\nKilled: 27  |  Passed to MVP: 1\n\nBy stage:\n  Stage 1 (signal):       20 killed\n  Stage 2 (customer):     2 killed\n  Stage 3 (problem):      1 killed\n  Stage 4 (alternatives): 4 killed\n  Stage 5 (approach):     0 killed\n  Stage 6 (hypothesis):   0 killed\n",
+  "_total_evaluated": 28,
+  "_total_killed": 27,
+  "_runners_up": [
+    {
+      "status": "killed",
+      "killed_at_stage": 4,
+      "kill_reason": "3+ well-funded solutions already target this exact buyer and no clear differentiator exists for a 1-2 day MVP. Glean (enterprise), Almanac (YC S26, 'AI that knows your company', launched Aug 2026), Hyper (YC P26, 'company brain', launched Jun 2026), Super (YC W18), Craft (Claude Code on a VM with your workplace docs), Notion AI, Microsoft 365 Copilot, Dust.tt, and open-source Onyx all sell the 'company brain' to small/mid B2B teams. The Karpathy 'LLM wiki' pattern the poster plans to use already has a dozen open-source implementations (260-point Show HN, a 550-star repo). The HN thread's own consensus is that the right answer is not a product: 'A basic coding harness like Claude Code is going to do a million times better than anything you can build yourself. Don't roll something yourself or buy a special solution from a vendor,' and in Almanac's launch thread the top comment is 'There is a lot of competition in this space... I'm not sure you have a very strong answer to why not just run Claude or Codex on my laptop.' The buyer is also an engineer whose mandate is to build, so a new vendor pitch fights both incumbents and the buyer's incentive. Any differentiator I could write ('cheaper', 'git-backed', 'MCP-first') is already claimed by a named competitor.",
+      "stage_2": {
+        "customer": "The senior backend engineer or tech lead at a 20-150 person B2B company with named clients (client tickets, per-client system health, meeting transcripts, OKRs) who has been handed a 'build us an AI company brain' mandate by the CTO with no budget line and no clear spec, and is now doing build-vs-buy research alone. The poster (mfalcon) is one; the Almanac founders described being this person before founding; two thread commenters (Benjaminsen, krys_agentivity) built it for clients.",
+        "where": "Hacker News (Ask HN / Launch HN threads on company memory), r/ClaudeAI, r/LocalLLaMA, r/ExperiencedDevs, r/mcp, the MCP and Latent Space Discords, Latent Space and Ben's Bites newsletters, YC batch Slack/Bookface.",
+        "pays_for": "Claude Team/Max or ChatGPT Team seats (~$25-30/user/mo), Cursor/Claude Code seats, Notion or Confluence, a meeting transcription tool (Fireflies/Gong-class), Slack, and in the next tier up, Glean or Microsoft 365 Copilot at ~$30/user/mo."
+      },
+      "stage_3": {
+        "real_posts": [
+          "https://www.reddit.com/r/ChatGPTCoding/comments/14xlsmf/train_ai_model_on_business_internal_docs_so_that/",
+          "https://www.reddit.com/r/nocode/comments/18wcc5g/is_there_a_way_to_build_an_affordable_secure/",
+          "https://www.reddit.com/r/microsoft_365_copilot/comments/1bc34s8/designing_internal_chatbot_for_company/",
+          "https://news.ycombinator.com/item?id=49511007",
+          "https://news.ycombinator.com/item?id=48387095"
+        ],
+        "urgent": "The poster has a direct CTO mandate ('The CTO wants it, there's no way around that', 'quitting is not possible') and is actively soliciting architecture decisions this week. Almanac's founder described the same situation as 'a very annoying and difficult journey' that pushed them to found a company. Urgency is a salaried assignment, not a deadline with dollars attached.",
+        "valuable": "Not quantified by the poster or any found post. The cost is engineer-weeks on connectors, OAuth, permissions, and wiki maintenance (Almanac founder: 'building OAuth apps for every connector myself, then feeding it context myself'), plus the recurring agent token spend the poster asks about. No post states hours/week or dollars lost. Passed narrowly on engineer-time cost; this weakness compounds the Stage 4 kill."
+      },
+      "stage_4": {
+        "software": [
+          "Almanac (YC S26) - usealmanac.com - 'AI that knows your company', company-wide markdown wiki + connectors + CLI for any harness; directly targets this buyer",
+          "Hyper (YC P26) - heyhyper.ai - shared 'company brain' fact graph in Postgres feeding agents; directly targets this buyer",
+          "Glean - glean.com - enterprise knowledge assistant with permission-aware connectors; too expensive and enterprise-sales-gated for a 20-150 person company, which is the only gap, and Almanac/Hyper/Super/Craft/Dust/Onyx already sit in that gap"
+        ],
+        "workarounds": [
+          "A git repo of markdown files (Karpathy 'LLM wiki' pattern) maintained by Claude Code, with per-employee MCP access to live sources on their own seats - the thread's recommended path and what the poster is already planning",
+          "Notion/Confluence wiki plus Notion AI or Copilot Q&A on top, with meeting transcripts pasted in by hand",
+          "Hire a consultant; two commenters in the thread have built this for multiple clients and offered help"
+        ],
+        "graveyard": "GitHub repository searches for archived repos ('company knowledge base llm archived:true', 'enterprise knowledge assistant llm archived:true stars:>50', 'chat with your company documents archived:true stars:>50') each returned 0 repositories, so no abandoned-repo evidence was retrieved. The field is the opposite of a graveyard: it is crowded with live, funded 2026 entrants, which is the structural problem."
+      },
+      "stage_5": null,
+      "stage_6": null,
+      "id": "hn_50379710",
+      "title": "Ask HN: Are you building an AI company brain?",
+      "url": "https://news.ycombinator.com/item?id=50379710",
+      "source": "hackernews",
+      "score": 7,
+      "num_comments": 15
+    },
+    {
+      "status": "killed",
+      "killed_at_stage": 4,
+      "kill_reason": "Auto-kill on both Stage 4 criteria. (a) 3+ well-funded solutions already do exactly what the post asks for: Kiwi.com's entire thesis is virtual interlining (combining one-ways across airlines, with 'London (any airport)' search); Skyscanner shows mixed-airline combinations and city-level 'any airport' returns; Kayak's Hacker Fares stitch two one-ways; ITA Matrix supports open-jaw and multi-airport codes. I cannot articulate a differentiator beyond 'be more reliable than Google,' which is not a product. (b) The graveyard has a structural cause that has not changed: the Adioso (YC W09) co-founder stated on HN (item 41598559) that they worked on precisely this from 2008-2013 and gave up because complete, current fare and seat inventory is locked down by the industry, so results users could trust were impossible; Hipmunk, the other 2011 entrant, is gone. A solo Next.js build has worse data access than any of them. The post itself is also a curiosity question ('Is it just me hitting bugs?') from someone who pays nothing and names no money lost.",
+      "stage_2": {
+        "customer": "Price-optimizing leisure travelers in multi-airport metros (London, NYC, Bay Area) who already use hacks like booking two one-ways on different carriers and open-jaw returns to a sister airport, and who have noticed Google Flights stopped surfacing those itineraries. Hobbyist 'flight hackers', not business travelers on corporate tools.",
+        "where": "r/Flights, r/TravelHacks, r/awardtravel, r/Shoestring, FlyerTalk 'Online Travel Booking and Bidding Agencies' forum, travel.stackexchange.com, Going (Scott's Cheap Flights) and Thrifty Traveler newsletters, Jack's Flight Club (UK/London specifically).",
+        "pays_for": "Going Premium (~$49/yr) and Elite (~$199/yr), Thrifty Traveler Premium (~$99/yr), Jack's Flight Club Premium, ExpertFlyer (~$99/yr), Seats.aero Pro and Point.me (award search), Kiwi.com's Guarantee fee on virtually-interlined bookings."
+      },
+      "stage_3": {
+        "real_posts": [
+          "https://travel.stackexchange.com/questions/26780/is-there-a-flight-search-engine-that-combines-flights-from-different-airlines",
+          "https://news.ycombinator.com/item?id=41597929",
+          "https://travel.stackexchange.com/questions/54301/what-is-the-most-advanced-flight-search-engine-besides-azuon-and-matrix",
+          "https://travel.stackexchange.com/questions/174984/how-to-search-for-flights-to-anywhere-if-the-journey-starts-and-ends-in-different-set-of-airports"
+        ],
+        "urgent": "Weak but present: the Travel SE poster (q26780, 31 score, 52,864 views, 10 answers) had a fixed travel date and arrival deadline and was actively hunting a mixed-carrier combo that week. The HN candidate author describes an actual search they ran and failed. No deadlines or blocked work in the HN post itself.",
+        "valuable": "Travel SE poster found a mixed-carrier combination at roughly half the \u20ac3000+ that search engines showed, i.e. ~\u20ac1500 saved on one trip. The HN author quantifies nothing beyond extra segments and time. Searches run: HN Algolia (10 queries incl. 'google flights two one-way tickets different airlines', 'google flights open jaw different airport return', 'kiwi.com virtual interlining'), Travel StackExchange API (2 queries), Reddit search.json (3 queries, blocked with empty responses)."
+      },
+      "stage_4": {
+        "software": [
+          "Kiwi.com (https://www.kiwi.com) - virtual interlining across airlines plus 'any airport' city search is its core product; insufficient only in trust/reliability, which a solo build cannot beat without the same inventory access",
+          "Skyscanner (https://www.skyscanner.net) - shows mixed-airline self-transfer itineraries and 'London (Any)' as origin/destination; already does the multi-airport return the post wants",
+          "Kayak Hacker Fares (https://www.kayak.com) - stitches two one-ways from different airlines into a round trip; Booking Holdings funded",
+          "ITA Matrix (https://matrix.itasoftware.com) - supports open-jaw, multi-airport codes, and routing codes; same Google backend data, so it has the same coverage gaps but exposes the controls"
+        ],
+        "workarounds": [
+          "Search each direction as a one-way manually on Google Flights and on the airline's own site, then book two tickets",
+          "Use multi-city mode with LHR out and LGW back explicitly, or type 'LON' city code",
+          "Subscribe to a deal newsletter (Going, Jack's Flight Club) and let humans find the combos",
+          "Check the airline's own schedule page for new routes Google hasn't indexed yet, exactly as the post author did"
+        ],
+        "graveyard": "Adioso (YC W09) built virtual interlining from 2008-2013 and abandoned it; co-founder on HN (item 41598559) says the blocker was that complete, up-to-date fare and seat inventory is locked down by the industry, so results could not be trusted, and the company pivoted to airline-side tooling. Hipmunk (2010) was acquired by Concur and shut down in 2020. HN 2011 thread 'Google Flight Search means little for Adioso & Hipmunk' marks the moment Google entered. GitHub search for 'virtual interlining' and 'cheap flights multi airport' returned zero repos; the only active repos are Google Flights scrapers (AWeirdDev/flights, 2130 stars), i.e. everyone builds on top of Google's data rather than replacing it. The structural reason (no open inventory for an outsider) is unchanged."
+      },
+      "stage_5": null,
+      "stage_6": null,
+      "id": "hn_50358924",
+      "title": "Ask HN: What is Google Flights' business model and has it changed recently?",
+      "url": "https://news.ycombinator.com/item?id=50358924",
+      "source": "hackernews",
+      "score": 8,
+      "num_comments": 7
+    }
+  ]
+}
